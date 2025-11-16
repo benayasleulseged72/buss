@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>NXT – Money Manager (Mixed Trade Chart, Paired Months)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg:#030412;
+      --panel:#0c1116;
+      --muted:#9fb7c9;
+      --import:#4fc3f7;
+      --export:#a678ff;
+      --neon: #ff2de0;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#02040a,#050618);color:#eaf6ff;font-family:Inter,Arial,Helvetica,sans-serif}
+    .wrap{max-width:1150px;margin:32px auto;padding:18px}
+    h1{margin:0;color:var(--import);letter-spacing:1px;font-weight:800}
+    .actions{display:flex;gap:16px;flex-wrap:wrap;margin-top:18px;align-items:center}
+    .btn{
+      background:linear-gradient(90deg,#ff00e6,#00eaff);
+      border:0;padding:12px 22px;border-radius:10px;color:#030317;font-weight:800;cursor:pointer;
+      box-shadow:0 8px 30px rgba(0,0,0,0.6);
+    }
+    .subpanel{margin-top:12px;display:none}
+    .subbtn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:10px 18px;border-radius:10px;color:var(--import);cursor:pointer;margin-right:8px}
+    .hint{color:var(--muted);margin-top:10px}
+
+    /* fullscreen dashboard */
+    #fullscreen{position:fixed;inset:0;background:linear-gradient(180deg, rgba(2,4,9,0.96), rgba(1,3,9,0.99));display:none;z-index:999;overflow:auto;padding:28px}
+    .fs-inner{max-width:1200px;margin:0 auto}
+    .fs-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+    .fs-title{font-size:22px;color:#dff8ff;margin:0}
+    .cards{display:flex;gap:16px;flex-wrap:wrap;margin-top:18px}
+    .card{background:var(--panel);padding:18px;border-radius:12px;min-width:220px;border:1px solid rgba(255,255,255,0.02)}
+    .card h3{margin:0;color:var(--muted);font-size:13px}
+    .card .big{margin-top:10px;font-size:28px;color:var(--import);font-weight:800}
+    .card .big.purple{color:var(--export)}
+
+    .chart-area{margin-top:22px;background:linear-gradient(180deg, rgba(255,255,255,0.012), rgba(255,255,255,0.008));padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.02)}
+    .table-wrap{margin-top:18px;background:var(--panel);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.02)}
+    table{width:100%;border-collapse:collapse;color:#eaf6ff}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.02)}
+    th{color:var(--muted);text-align:left}
+    td.type-import{color:var(--import);font-weight:700}
+    td.type-export{color:var(--export);font-weight:700}
+
+    .close-btn{margin-top:14px;padding:10px 16px;border-radius:10px;border:none;background:#ff4a4a;color:white;cursor:pointer}
+    @media (max-width:880px){ .cards{flex-direction:column} .fs-header{flex-direction:column;align-items:flex-start} }
+  </style>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <h1>NXT — TRADE PANEL</h1>
+
+    <div class="actions">
+      <button class="btn" onclick="toggleImport()">IMPORT MONEY</button>
+      <button class="btn" onclick="toggleExport()">EXPORT MONEY</button>
+    </div>
+
+    <div id="importPanel" class="subpanel">
+      <button class="subbtn" onclick="registerAmount('import')">REGISTER NEW AMOUNT</button>
+      <button class="subbtn" onclick="showTotal('import')">TOTAL AMOUNT (TRADE)</button>
+    </div>
+
+    <div id="exportPanel" class="subpanel">
+      <button class="subbtn" onclick="registerAmount('export')">REGISTER NEW AMOUNT</button>
+      <button class="subbtn" onclick="showTotal('export')">TOTAL AMOUNT (TRADE)</button>
+    </div>
+
+    <div class="hint">Data saved locally in your browser. Entries keep their assigned month (paired by index so bars align).</div>
+  </div>
+
+  <!-- Fullscreen dashboard -->
+  <div id="fullscreen" role="dialog" aria-modal="true">
+    <div class="fs-inner">
+      <div class="fs-header">
+        <h2 id="fs-title" class="fs-title">TRADE DASHBOARD</h2>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div style="color:var(--muted)">Chart: bars = Import/Export, line = Total</div>
+        </div>
+      </div>
+
+      <div class="cards" id="dashboard-cards">
+        <div class="card">
+          <h3>Total Amount</h3>
+          <div id="total-amount" class="big">0</div>
+        </div>
+        <div class="card">
+          <h3>Entries Count</h3>
+          <div id="entry-count" class="big">0</div>
+        </div>
+        <div class="card">
+          <h3>Biggest Entry</h3>
+          <div id="max-entry" class="big purple">0</div>
+        </div>
+      </div>
+
+      <div class="chart-area">
+        <canvas id="tradeChart" height="220"></canvas>
+      </div>
+
+      <div class="table-wrap">
+        <h3 style="margin:0 0 10px 0;color:var(--muted)">Registered Entries (paired by index)</h3>
+        <table aria-describedby="Registered Entries">
+          <thead>
+            <tr><th style="width:60px">#</th><th>Import</th><th>Export</th><th>Month</th></tr>
+          </thead>
+          <tbody id="paired-tbody"></tbody>
+        </table>
+      </div>
+
+      <div style="text-align:center">
+        <button class="close-btn" onclick="closeFullscreen()">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ---------------------------
+  Constants / helpers
+----------------------------*/
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function loadRaw(key){
+  const raw = localStorage.getItem(key);
+  if(!raw) return [];
+  try { return JSON.parse(raw); } catch(e){ return []; }
+}
+function saveRaw(key, data){ localStorage.setItem(key, JSON.stringify(data)); }
+
+/* ---------------------------
+  Migrate old arrays and normalize to objects:
+  stored items will be { amount: Number, month: 0..11 }
+----------------------------*/
+function normalizeList(key){
+  const raw = loadRaw(key);
+  // If empty -> []
+  if(!Array.isArray(raw)) return [];
+  // Already objects?
+  if(raw.length && typeof raw[0] === 'object' && raw[0] !== null){
+    // ensure fields and types
+    const mapped = raw.map(it => ({
+      amount: Number(it.amount || 0),
+      month: (typeof it.month === 'number' && it.month >=0 && it.month < 12) ? it.month : Math.floor(Math.random()*12)
+    }));
+    saveRaw(key, mapped);
+    return mapped;
+  }
+  // If array of simple numbers or strings -> migrate
+  const migrated = raw.map(item => ({
+    amount: Number(item || 0),
+    month: Math.floor(Math.random()*12)
+  }));
+  saveRaw(key, migrated);
+  return migrated;
+}
+
+/* ---------------------------
+  Pairing logic (Option B)
+  - We pair by index up to maxLen
+  - For each pair i: month = import[i].month || export[i].month || rand
+  - If one side is missing, set amount = 0
+  - After pairing we persist month assignment back to lists so months become stable
+----------------------------*/
+function pairListsAndPersist(){
+  const impKey = 'import_money';
+  const expKey = 'export_money';
+  const imp = normalizeList(impKey);
+  const exp = normalizeList(expKey);
+
+  const maxLen = Math.max(imp.length, exp.length);
+  // Make copies to avoid mutation surprises
+  const impCopy = imp.slice();
+  const expCopy = exp.slice();
+  const pairs = [];
+
+  for(let i=0;i<maxLen;i++){
+    const impItem = impCopy[i] || {amount:0, month: null};
+    const expItem = expCopy[i] || {amount:0, month: null};
+
+    // Decide month for this pair
+    let month = null;
+    if(typeof impItem.month === 'number' && impItem.month >=0 && impItem.month < 12) month = impItem.month;
+    if(month === null && typeof expItem.month === 'number' && expItem.month >=0 && expItem.month < 12) month = expItem.month;
+    if(month === null) month = Math.floor(Math.random()*12);
+
+    // set chosen month back to both items to persist alignment
+    impCopy[i] = { amount: Number(impItem.amount || 0), month };
+    expCopy[i] = { amount: Number(expItem.amount || 0), month };
+
+    pairs.push({ import: impCopy[i].amount, export: expCopy[i].amount, month });
+  }
+
+  // Persist back full lists (so months remain stable)
+  saveRaw(impKey, impCopy);
+  saveRaw(expKey, expCopy);
+
+  return pairs; // array of {import, export, month}
+}
+
+/* ---------------------------
+  UI: toggles + register
+----------------------------*/
+function toggleImport(){ const el = document.getElementById('importPanel'); el.style.display = el.style.display === 'block' ? 'none' : 'block'; }
+function toggleExport(){ const el = document.getElementById('exportPanel'); el.style.display = el.style.display === 'block' ? 'none' : 'block'; }
+
+function registerAmount(type){
+  const raw = prompt('Enter new ' + type.toUpperCase() + ' amount (numbers only):');
+  if(raw === null) return; // cancel
+  const amt = Number(raw);
+  if(!raw || isNaN(amt)){
+    alert('Invalid amount. Use numbers only.');
+    return;
+  }
+  const key = type === 'import' ? 'import_money' : 'export_money';
+  const list = normalizeList(key); // also migrates
+  // create object with random month; pairing will realign months on showTotal()
+  list.push({ amount: amt, month: Math.floor(Math.random()*12) });
+  saveRaw(key, list);
+  alert('Saved ' + amt + ' to ' + type.toUpperCase());
+}
+
+/* ---------------------------
+  Chart & dashboard
+----------------------------*/
+let chart = null;
+function initChart(){
+  const ctx = document.getElementById('tradeChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Import',
+          backgroundColor: 'rgba(79,195,247,0.95)',
+          borderRadius: 8,
+          barThickness: 18,
+          data: Array(12).fill(0)
+        },
+        {
+          type: 'bar',
+          label: 'Export',
+          backgroundColor: 'rgba(166,120,255,0.95)',
+          borderRadius: 8,
+          barThickness: 18,
+          data: Array(12).fill(0)
+        },
+        {
+          type: 'line',
+          label: 'Total (Import + Export)',
+          borderColor: 'rgba(255,90,200,0.95)',
+          backgroundColor: 'rgba(255,90,200,0.08)',
+          tension: 0.35,
+          pointRadius: 4,
+          yAxisID: 'y',
+          data: Array(12).fill(0),
+          borderWidth: 2,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#d6f3ff' } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { ticks: { color:'#a9dff0' }, grid: { display:false } },
+        y: { ticks:{ color:'#a9dff0' }, grid: { color:'rgba(255,255,255,0.03)' }, beginAtZero:true }
+      }
+    }
+  });
+}
+
+function buildMonthSumsFromPairs(pairs){
+  const impSums = new Array(12).fill(0);
+  const expSums = new Array(12).fill(0);
+  pairs.forEach(p => {
+    impSums[p.month] += Number(p.import || 0);
+    expSums[p.month] += Number(p.export || 0);
+  });
+  return { impSums, expSums };
+}
+
+function updateChartFromSums(impSums, expSums){
+  if(!chart) initChart();
+  const total = impSums.map((v,i) => Math.round((v || 0) + (expSums[i] || 0)));
+  chart.data.datasets[0].data = impSums.map(v => Math.round(v));
+  chart.data.datasets[1].data = expSums.map(v => Math.round(v));
+  chart.data.datasets[2].data = total;
+  chart.update();
+}
+
+/* showTotal: builds pairs, aggregates, updates UI */
+function showTotal(type){
+  const pairs = pairListsAndPersist(); // pairs array of {import, export, month}
+
+  // Dashboard cards (show stats for the selected type but totals of both)
+  const selectedList = type === 'import' ? normalizeList('import_money') : normalizeList('export_money');
+  const selectedTotal = selectedList.reduce((s,it)=> s + Number(it.amount || 0),0);
+  const selectedMax = selectedList.length ? Math.max(...selectedList.map(it=>Number(it.amount||0))) : 0;
+  const selectedCount = selectedList.length;
+
+  document.getElementById('fs-title').innerText = (type === 'import' ? 'IMPORT TRADE DASHBOARD' : 'EXPORT TRADE DASHBOARD');
+  document.getElementById('total-amount').innerText = selectedTotal.toLocaleString();
+  document.getElementById('entry-count').innerText = selectedCount;
+  document.getElementById('max-entry').innerText = selectedMax.toLocaleString();
+
+  // Aggregate by month
+  const { impSums, expSums } = buildMonthSumsFromPairs(pairs);
+  updateChartFromSums(impSums, expSums);
+
+  // Build paired table (index, import, export, month)
+  const tbody = document.getElementById('paired-tbody');
+  tbody.innerHTML = '';
+  pairs.forEach((p, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${idx+1}</td>
+      <td class="type-import">${Number(p.import).toLocaleString()}</td>
+      <td class="type-export">${Number(p.export).toLocaleString()}</td>
+      <td>${MONTHS[p.month]}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Show fullscreen
+  document.getElementById('fullscreen').style.display = 'block';
+}
+
+function closeFullscreen(){
+  document.getElementById('fullscreen').style.display = 'none';
+}
+
+/* ---------------------------
+  On load: ensure migration + init chart
+----------------------------*/
+(function onLoad(){
+  // normalize both lists (will migrate older numeric arrays)
+  normalizeList('import_money');
+  normalizeList('export_money');
+  // init chart now (it will be updated when user opens dashboard)
+  initChart();
+})();
+</script>
+</body>
+</html>
