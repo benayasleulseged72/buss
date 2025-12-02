@@ -3,124 +3,80 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cyberpunk Login</title>
+<title>benayas leuseged software community login page</title>
+<link rel="stylesheet" href="style.css">
+
 <style>
-    body {
-        margin: 0;
-        font-family: 'Orbitron', sans-serif;
-        background: #05010d;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        color: #fff;
-    }
-
-    .login-box {
-        width: 420px;
-        padding: 40px;
-        background: rgba(20, 0, 40, 0.6);
-        border-radius: 20px;
-        box-shadow: 0 0 25px rgba(255, 0, 255, 0.3), inset 0 0 20px rgba(0, 200, 255, 0.1);
-        text-align: center;
-        backdrop-filter: blur(10px);
-    }
-
-    .title {
-        font-size: 26px;
-        font-weight: bold;
-        color: #ff00e6;
-        text-shadow: 0 0 10px #ff00e6;
-    }
-
-    .subtitle {
-        margin-top: 8px;
-        color: #00eaff;
-        font-size: 14px;
-    }
-
-    label {
-        display: block;
-        margin-top: 16px;
-        text-align: left;
-        color: #ff8bd7;
-        font-size: 14px;
-    }
-
-    input {
-        width: 100%;
-        margin-top: 6px;
-        padding: 12px;
-        border: none;
-        outline: none;
-        background: #060014;
-        border-radius: 10px;
-        color: #00eaff;
-        font-size: 14px;
-        box-shadow: 0 0 12px rgba(0, 200, 255, 0.3) inset;
-    }
-
-    .btn {
-        margin-top: 22px;
-        width: 100%;
-        padding: 14px;
-        background: linear-gradient(90deg, #ff00e6, #00eaff);
-        border: none;
-        border-radius: 12px;
-        font-size: 15px;
-        color: #000;
-        font-weight: bold;
-        letter-spacing: 2px;
-        cursor: pointer;
-        box-shadow: 0 0 20px rgba(255, 0, 255, .4);
-    }
-
-    .error {
-        margin-top: 10px;
-        color: #ff4a4a;
-        font-size: 13px;
-    }
-
-    .header-img {
-        width: 100px;
-        margin-bottom: 10px;
-    }
+h2{font-size:2em;color:#0ef;text-align:center;margin-bottom:10px}
+.clinic-subtitle{text-align:center;color:#0ef;font-size:0.9em;margin-bottom:30px;opacity:0.8;letter-spacing:2px}
+.error{color:#ff006e;text-align:center;margin-top:15px;font-weight:600;display:none;animation:shake 0.5s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
 </style>
+
 </head>
 <body>
 
+<img src="1.png" alt="logo" width="83" style="margin-bottom:20px">
+
+<div class="container">
 <div class="login-box">
-    <img src="1.png" class="header-img" alt="Header Image">
-    <div class="title">BENAYAS LEULSEGED SOFTWARE COMMUNITY</div>
-    <div class="subtitle">WELCOME – LOGIN</div>
+<h2>Benayas Leulseged</h2>
+<p class="clinic-subtitle">Software Community</p>
 
-    <label>Username</label>
-    <input type="text" placeholder="username">
+<form onsubmit="handleLogin(event)">
+<div class="input-box">
+<input type="text" id="username" required autocomplete="off">
+<label>Username</label>
+</div>
 
-    <label>Password</label>
-    <input type="password" placeholder="your password">
+<div class="input-box">
+<input type="password" id="password" required>
+<label>Password</label>
+</div>
 
-    <button class="btn">SIGN IN</button>
+<!-- FIXED BUTTON -->
+<button type="submit" class="btn">
+  Access System
+  <span class="shine"></span>
+</button>
 
-    <div class="error">Username or password incorrect.</div>
+<p class="error" id="error">Invalid credentials. Access denied.</p>
+</form>
+</div>
+
+<!-- 50 spans -->
+<script>
+for(let i=0;i<50;i++){
+  document.write(`<span style="--i:${i}"></span>`);
+}
+</script>
+
 </div>
 
 <script>
-const btn = document.querySelector('.btn');
-const userInput = document.querySelectorAll('input')[0];
-const passInput = document.querySelectorAll('input')[1];
-const errorBox = document.querySelector('.error');
+  
+const users={
+  ben:'admin.html',nr1:'nr1.html',nr2:'nr2.html',
+  doc1:'doc1.html',doc2:'doc2.html',doc3:'doc3.html',
+  lab:'lab.html',admin:'admin.html',admpr:'admpr.html'
+};
 
-btn.addEventListener('click', () => {
-    const u = userInput.value.trim();
-    const p = passInput.value.trim();
+function handleLogin(e){
+  e.preventDefault();
+  const username=document.getElementById('username').value;
+  const password=document.getElementById('password').value;
 
-    if(u === "BENIO" && p === "BENIOLEO"){
-        window.location.href = "nxt.html";
-    } else {
-        errorBox.textContent = "Username or password incorrect.";
-    }
-});
+  if(users[username] && username===password){
+    localStorage.setItem('currentUser',username);
+    window.location.href=users[username];
+  } else {
+    const error=document.getElementById('error');
+    error.style.display='block';
+    setTimeout(()=>error.style.display='none',3000);
+  }
+}
+
 </script>
+
 </body>
 </html>
